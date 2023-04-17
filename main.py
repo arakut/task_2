@@ -1,66 +1,68 @@
 import requests
-import argparse
 import os
 from dotenv import load_dotenv
 from functools import partial
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path)
 
-BITLY_TOKEN = os.getenv('BITLY_TOKEN')
-HEADERS = {
-    'Authorization': f'Bearer {BITLY_TOKEN}',
-}
-
-parser = argparse.ArgumentParser(
-    description='A python script that helps you to cut your url or get count of clicks on your bitlink.'
-)
-parser.add_argument('url', help='Put your link')
-user_link = parser.parse_args().url
-
-
-def shorten_link(user_url):
+def shorten_link(user_url, token):
     main_url = 'https://api-ssl.bitly.com/v4/shorten'
+    headers = {
+        'Authorization': f'Bearer {token}',
+    }
 
     payload = {
         'long_url': f'{user_url}',
     }
 
-    response = requests.post(main_url, headers=HEADERS, json=payload)
+    response = requests.post(main_url, headers=headers, json=payload)
     response.raise_for_status()
     bitlink = response.json().get("id")
     return bitlink
 
 
-def count_clicks(user_url):
+def count_clicks(user_url, token):
     main_url = f'https://api-ssl.bitly.com/v4/bitlinks/{user_url}/clicks/summary'
 
-    response = requests.get(main_url, headers=HEADERS)
+    headers = {
+        'Authorization': f'Bearer {token}',
+    }
+
+    response = requests.get(main_url, headers=headers)
     response.raise_for_status()
     clicks = response.json().get('total_clicks')
     return clicks
 
 
-def is_bitlink(user_url):
+def is_bitlink(user_url, token):
     main_url = f'https://api-ssl.bitly.com/v4/bitlinks/{user_url}'
 
-    response = requests.get(main_url, headers=HEADERS)
-    if response.ok:
+    headers = {
+        'Authorization': f'Bearer {token}',
+    }
+
+    response = requests.get(main_url, headers=headers)
+    if response.status_code == 200:
         return True
     return False
 
 
 def main():
-    if is_bitlink(user_link):
-        return f'All amounts of clicks: {count_clicks(user_link)}'
+    load_dotenv()
+    bitly_token = os.environ['BITLY_TOKEN']
+
+    chek_link = partial(is_bitlink, token=bitly_token)
+    counter = partial(count_clicks, token=bitly_token)
+    shorter = partial(shorten_link, token=bitly_token)
+
+    input_link = input('Put your link: ')
+    if chek_link(input_link):
+        print('All amounts of clicks: ', counter(input_link))
     else:
-        return f'Your new bitlink: {shorten_link(user_link)}'
+        print('Your new bitlink: ', shorter(input_link))
 
 
 if __name__ == '__main__':
     try:
-        print(main())
+        main()
     except requests.exceptions.HTTPError:
         print('Something went wrong with your link')
-
