@@ -41,28 +41,27 @@ def is_bitlink(user_url, token):
     }
 
     response = requests.get(main_url, headers=headers)
-    if response.status_code == 200:
-        return True
-    return False
+    return response.ok
 
 
 def main():
     load_dotenv()
     bitly_token = os.environ['BITLY_TOKEN']
 
-    chek_link = partial(is_bitlink, token=bitly_token)
-    counter = partial(count_clicks, token=bitly_token)
-    shorter = partial(shorten_link, token=bitly_token)
-
     input_link = input('Put your link: ')
-    if chek_link(input_link):
-        print('All amounts of clicks: ', counter(input_link))
-    else:
-        print('Your new bitlink: ', shorter(input_link))
+
+    try:
+        chek_link = is_bitlink(input_link, bitly_token)
+
+        if chek_link:
+            counter = count_clicks(input_link, bitly_token)
+            print('All amounts of clicks:', counter)
+        else:
+            shorter = shorten_link(input_link, bitly_token)
+            print('Your new bitlink:', shorter)
+    except requests.exceptions.HTTPError:
+        print('Something went wrong with your link')
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except requests.exceptions.HTTPError:
-        print('Something went wrong with your link')
+    main()
